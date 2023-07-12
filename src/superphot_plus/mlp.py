@@ -25,18 +25,6 @@ def save_test_probabilities(name, true_label, pred_probabilities):
             pf.write(",%.04f" % p)
         pf.write("\n")
 
-
-def save_unclassified_test_probabilities(name, pred_probabilities):
-    """
-    Saves probabilities to separate file for ROC curve generation.
-    """
-    with open(PROBS_FILE2, "a+") as pf:
-        pf.write("%s" % name)
-        for p in pred_probabilities:
-            pf.write(",%.04f" % p)
-        pf.write("\n")
-
-
 def get_predictions(model, iterator, device):
     """
     Given a trained model, returns the test images, test labels,
@@ -71,37 +59,6 @@ def get_predictions(model, iterator, device):
     sample_idxs = torch.cat(sample_idxs, dim=0)
 
     return images, labels, sample_idxs, probs
-
-
-def get_predictions_new(model, iterator, device):
-    """
-    Given a trained model, returns the test images, test labels,
-    and predicttion probabilities across all the test labels.
-    """
-
-    model.eval()
-
-    images = []
-    probs = []
-
-    with torch.no_grad():
-
-        for x in iterator:
-
-            x = x[0].to(device)
-
-            y_pred, _ = model(x)
-
-            y_prob = F.softmax(y_pred, dim=-1)
-
-            images.append(x.cpu())
-            probs.append(y_prob.cpu())
-
-    images = torch.cat(images, dim=0)
-    probs = torch.cat(probs, dim=0)
-
-    return images, probs
-
 
 def calculate_accuracy(y_pred, y):
     """

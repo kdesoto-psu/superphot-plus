@@ -1,5 +1,5 @@
-from superphot_plus import constants
+import superphot_plus.constants import MAX_ITER
 
 
 def test_constants() -> None:
-    assert True
+    assert MAX_ITER == 5000

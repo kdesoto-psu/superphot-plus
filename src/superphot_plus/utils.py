@@ -24,20 +24,6 @@ def get_band_extinctions(ra, dec):
 
     return ext_list
 
-
-def get_sn_ra_dec(ztf_name, filtered_csv):
-    """
-    Get the RA and DEC of a supernova from
-    filtered summary info.
-    """
-    with open(filtered_csv, "r") as cf:
-        for row in cf:
-            if row.split(",")[0] == ztf_name:
-                ra = float(row.split(",")[2])
-                dec = float(row.split(",")[3])
-                return ra, dec
-
-
 def calc_accuracy(pred_classes, test_labels):
     """
     Calculates the accuracy of the random forest after predicting

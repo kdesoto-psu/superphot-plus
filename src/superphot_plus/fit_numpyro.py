@@ -788,26 +788,6 @@ def flux_from_posteriors(t, params, max_flux):
     return flux_g, flux_r
 
 
-def main_loop_directory(test_fns, output_dir=FITS_DIR):
-    #try:
-    os.makedirs(output_dir, exist_ok=True)
-    #prefix = test_fn.split("/")[-1][:-4]
-    #if os.path.exists(output_dir + str(prefix) + '_eqwt.npz'):
-    #    return None
-
-    eq_samples = run_mcmc_batch(test_fns, plot=True)
-
-    if eq_samples is None:
-        return None
-    print(np.mean(eq_samples['log_tau_fall']))
-
-    return None
-
-    np.savez_compressed(output_dir + str(prefix) + '_eqwt.npz', eq_samples)
-    #except:
-    #    print("skipped")
-    #    return None
-
 
 def numpyro_single_file(test_fn, output_dir=FITS_DIR, sampler="svi"):
     os.makedirs(output_dir, exist_ok=True)
