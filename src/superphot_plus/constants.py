@@ -1,3 +1,5 @@
+"""A collection of constants used by many modules in the package."""
+
 import numpy as np
 
 # Nested sampling priors

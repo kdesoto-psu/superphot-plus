@@ -1,3 +1,9 @@
+"""This module provides functions to classify supernovae using a
+multi-layer perceptron (MLP).
+
+The classification is based on the fit parameters and light curves of
+the supernovae."""
+
 import csv
 import os
 import shutil
@@ -26,18 +32,17 @@ from .mlp import (
     save_unclassified_test_probabilities,
 )
 from .plotting import plot_confusion_matrix
-from .utils import calculate_chi_squareds, f1_score, calc_accuracy
+from .utils import calculate_neg_chi_squareds, f1_score, calc_accuracy
 from .ztf_transient_fit import import_data, run_mcmc
 
 
 def adjust_log_dists(features):
-    """
-    Takes log of fit parameters with log-Gaussian priors before
+    """Takes log of fit parameters with log-Gaussian priors before
     feeding into classifier. Also removes apparent amplitude and t0.
     
     Parameters
     ----------
-    features : numpy array
+    features : np.ndarray
         Array of fit features of all samples.
     """
     features[:, 4:7] = np.log10(features[:, 4:7])
@@ -46,13 +51,13 @@ def adjust_log_dists(features):
 
 
 def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plotted=False):
-    """
-    Train MLP to classify between supernovae of 'allowed_types'.
+    """Train MLP to classify between supernovae of 'allowed_types'.
     
     Parameters
     ----------
     goal_per_class : int
-        Oversampling such that there are this many fits per supernova type.
+        Oversampling such that there are this many fits per supernova 
+        type.
     num_epochs : int
         Number of training epochs.
     neurons_per_layer : int
@@ -60,9 +65,9 @@ def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plo
     num_layers : int
         Number of hidden layers in MLP.
     fits_plotted : bool
-        If true, assumes all sample fit plots are saved in FIT_PLOTS_FOLDER. Copies
-        plots of wrongly classified samples to separate folder for manual followup.
-        Defaults to False.
+        If true, assumes all sample fit plots are saved in 
+        FIT_PLOTS_FOLDER. Copies plots of wrongly classified samples to 
+        separate folder for manual followup. Defaults to False.
     """
 
     #for file in os.scandir('models'):
@@ -89,7 +94,7 @@ def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plo
     predicted_classes_mlp = np.array([])
     prob_above_07_mlp = np.array([], dtype=bool)
 
-    def run_single_fold(x):
+    def run_single_fold(x): # TODOLIV missed a docstring
         train_index, test_index = x
         train_labels = labels[train_index]
         test_labels = labels[test_index]
@@ -107,11 +112,11 @@ def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plo
         val_classes = np.array([labels_to_classes[l] for l in val_labels]).astype(int)
         test_classes = np.array([labels_to_classes[l] for l in test_labels]).astype(int)
 
-        train_chis = calculate_chi_squareds(train_names, FITS_DIR, DATA_DIRS)
+        train_chis = calculate_neg_chi_squareds(train_names, FITS_DIR, DATA_DIRS)
         train_features, train_classes, train_chis = oversample_using_posteriors(
             train_names, train_classes, train_chis, goal_per_class
         )
-        val_chis = calculate_chi_squareds(val_names, FITS_DIR, DATA_DIRS)
+        val_chis = calculate_neg_chi_squareds(val_names, FITS_DIR, DATA_DIRS)
         val_features, val_classes, val_chis = oversample_using_posteriors(
             val_names, val_classes, val_chis, round(0.1 * goal_per_class)
         )
@@ -124,7 +129,7 @@ def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plo
         test_group_idxs = []
         test_names_os = []
         test_chis_os = []
-        test_chis = calculate_chi_squareds(test_names, FITS_DIR, DATA_DIRS)
+        test_chis = calculate_neg_chi_squareds(test_names, FITS_DIR, DATA_DIRS)
 
         for i in range(len(test_names)):
             test_name = test_names[i]
@@ -252,7 +257,7 @@ def classify(goal_per_class, num_epochs, neurons_per_layer, num_layers, fits_plo
     )
 
 
-def return_new_classifications(test_csv, data_dirs, fit_dir, include_labels=False):
+def return_new_classifications(test_csv, data_dirs, fit_dir, include_labels=False): # TODOLIV missed a docstring
     """
     Return new classifications based on model, save probs to save_Csv.
     """
@@ -289,7 +294,7 @@ def return_new_classifications(test_csv, data_dirs, fit_dir, include_labels=Fals
                 continue
             test_features = test_posts
             test_names = np.array([test_name] * len(test_posts))
-            test_chi = calculate_chi_squareds([test_name,], fit_dir, data_dirs)[0]
+            test_chi = calculate_neg_chi_squareds([test_name,], fit_dir, data_dirs)[0]
             #if np.abs(test_chi) > 10: # probably not a SN
             #    print(test_name, "CHISQ TOO HIGH")
             #    label = "SKIP"
@@ -312,10 +317,11 @@ def return_new_classifications(test_csv, data_dirs, fit_dir, include_labels=Fals
                 save_unclassified_test_probabilities(test_names[0], probs_avg)
 
 
-def save_phase_versus_class_probs(probs_csv, data_dir):
+def save_phase_versus_class_probs(probs_csv, data_dir): # TODOLIV missed a docstring
     """
-    Apply classifier to dataset over different phases, plot overall trends of phase vs confidence,
-    phase vs F1 score, phase vs each class accuracy.
+    Apply classifier to dataset over different phases, plot overall 
+    trends of phase vs confidence, phase vs F1 score, phase vs each 
+    class accuracy.
     """
     model = MLP(13, 5, 128, 3) # set up empty multi-layer perceptron
     model.load_state_dict(torch.load(TRAINED_MODEL_FN)) # load trained state dict to the MLP
@@ -354,7 +360,7 @@ def save_phase_versus_class_probs(probs_csv, data_dir):
 
                 try:
                     refit_posts = run_mcmc(os.path.join(data_dir, test_name+".npz"), t)
-                    test_chi = calculate_chi_squareds([test_name,], FITS_DIR, [data_dir,])[0]
+                    test_chi = calculate_neg_chi_squareds([test_name,], FITS_DIR, [data_dir,])[0]
                     test_chis = np.array([[test_chi] * len(refit_posts)])
                 except:
                     print("skipping fitting")

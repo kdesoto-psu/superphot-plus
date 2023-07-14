@@ -10,9 +10,22 @@ from superphot_plus.sfd import dust_filepath
 
 
 def get_band_extinctions(ra, dec):
-    """
-    Get green and red band extinctions in magnitudes for
-    a single supernova LC based on RA and DEC.
+    """Get g- and r-band extinctions in magnitudes for a single
+    supernova lightcurve based on right ascension (RA) and declination
+    (DEC).
+
+    Parameters
+    ----------
+    ra : float
+        The right ascension of the object of interest, in degrees.
+    dec : float
+        The declination of the object of interest, in degrees.
+
+    Returns
+    -------
+    ext_list : array #TODOLIV - specify array type
+        A list of extinction magnitudes for the given coordinates, in
+        the g- and r-bands.
     """
     config["data_dir"] = dust_filepath
     sfd = SFDQuery()
@@ -33,9 +46,21 @@ def get_band_extinctions(ra, dec):
 
 
 def get_sn_ra_dec(ztf_name, filtered_csv):
-    """
-    Get the RA and DEC of a supernova from
-    filtered summary info.
+    """Get the right ascension (RA) and declination (DEC) of a supernova
+    from filtered summary information.
+
+    Parameters
+    ----------
+    ztf_name : str
+        ZTF name of the object.
+    filtered_csv : str
+        The path to the filtered CSV file.
+
+    Returns
+    -------
+    ra, dec : tuple
+        The right ascension (float) and declination (float) of the 
+        supernova.
     """
     with open(filtered_csv, "r") as cf:
         for row in cf:
@@ -46,24 +71,26 @@ def get_sn_ra_dec(ztf_name, filtered_csv):
 
 
 def calc_accuracy(pred_classes, test_labels):
-    """
-    Calculates the accuracy of the random forest after predicting
-    all classes.
+    """Calculates the accuracy of the random forest after predicting all
+    classes.
 
     Parameters
     ----------
-    pred_classes : numpy array (int)
-        classes predicted by MLP
-    test_labels : numpy array (int)
-        true spectroscopic classes
+    pred_classes : np.ndarray of int
+        Classes predicted by MLP.
+    test_labels : np.ndarray of int
+        True spectroscopic classes.
 
     Returns
-    accuracy: float
+    -------
+    Accuracy: float
         The percentage of the predictions that are correct.
 
     Raises
     ------
-    ValueError: If the arrays are empty or mismatched sizes.
+    ValueError
+        If the pred_classes or test_labels arrays are empty or if they
+        are of mismatched sizes.
     """
     num_total = len(pred_classes)
     if num_total == 0:
@@ -78,19 +105,24 @@ def calc_accuracy(pred_classes, test_labels):
 
 
 def f1_score(pred_classes, true_classes, class_average=False):
-    """
-    Calculates the F1 score for the classifier. If class_average=True, then
-    the macro-F1 is used. Else, uses the weighted-F1 score.
+    """Calculates the F1 score for the classifier. If
+    class_average=True, then the macro-F1 is used. Else, uses the 
+    weighted-F1 score.
 
     Parameters
     ----------
-    pred_classes : numpy array (int)
-        classes predicted by MLP
-    true_classes : numpy array (int)
-        true spectroscopic classes
-    class_average : bool
+    pred_classes : np.ndarray of int
+        Classes predicted by MLP.
+    true_classes : np.ndarray of int
+        True spectroscopic classes.
+    class_average : bool, optional
         Determines whether F1 score is weighted equally for each class,
         or by number of samples per class. Defaults to False.
+    
+    Returns
+    -------
+    float
+        The calculated F1 score.
     """
     samples_per_class = {}
     for c in true_classes:
@@ -116,15 +148,44 @@ def f1_score(pred_classes, true_classes, class_average=False):
 
 
 def convert_mags_to_flux(m, merr, zp):
+    """Converts magnitudes to flux.
+
+    Parameters
+    ----------
+    m : array-like # TODOLIV - investigate array types here
+        The magnitudes.
+    merr : array-like
+        The error in magnitudes.
+    zp : float
+        The zero point in the magnitude system.
+
+    Returns
+    -------
+    fluxes, flux_unc : tuple of numpy array
+        The calculated fluxes and their uncertainties.
+    """
     fluxes = 10.0 ** (-1.0 * (m - zp) / 2.5)
     flux_unc = np.log(10.0) / 2.5 * fluxes * merr
     return fluxes, flux_unc
 
 
 def flux_model(cube, t_data, b_data):
-    """
-    Given "cube" of fit parameters, returns the flux measurements for
+    """Given "cube" of fit parameters, returns the flux measurements for
     a given set of time and band data.
+
+    Parameters
+    ----------
+    cube : array-like # TODOLIV - array types
+        The cube of fit parameters.
+    t_data : array-like
+        The time data.
+    b_data : array-like
+        The band data.
+
+    Returns
+    -------
+    f_model : numpy array
+        The flux model for the given set of time and band data.
     """
     A, beta, gamma, t0, tau_rise, tau_fall, es = cube[
         :7
@@ -168,10 +229,23 @@ def flux_model(cube, t_data, b_data):
     return f_model
 
 
-def calculate_chi_squareds(names, fit_dir, data_dirs):
-    """
-    Gets the chi-squared of posterior fits from
-    the model parameters and original datafiles.
+def calculate_neg_chi_squareds(names, fit_dir, data_dirs):
+    """Gets the negative chi-squared of posterior fits from the model 
+    parameters and original data files.
+
+    Parameters
+    ----------
+    names : list of str
+        The names of the objects.
+    fit_dir : str
+        The directory where the fit files are located.
+    data_dirs : list of str
+        The directories where the data files are located.
+
+    Returns
+    -------
+    log_likelihoods : np.ndarray (#TODOLIV - of float?)
+        The log likelihoods for each object.
     """
     log_likelihoods = []
     for _, name in enumerate(names):

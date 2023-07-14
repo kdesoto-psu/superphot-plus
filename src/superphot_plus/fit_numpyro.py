@@ -1,3 +1,8 @@
+"""This module provides functionality for running a dynesty importance 
+nested sampling algorithm on given data files and returning a set of 
+equally weighted posteriors (sets of fit parameters).
+"""
+
 import os
 
 import arviz as az
@@ -20,11 +25,27 @@ config.update("jax_enable_x64", True)
 numpyro.enable_x64()
 
 
-def import_data(fn, t0_lim=None):
+def import_data(filename, t0_lim=None):
+    """Import the data file.
+    
+    Parameters
+    ----------
+    filename : str
+        The name of the data file to import.
+    t0_lim : float or None, optional
+        The upper time limit for the data. If provided, only data points
+        with time values less than or equal to t0_lim will be included.
+        Defaults to None.
+
+    Returns
+    -------
+    tuple of arrays or None # TODOLIV should this be np.ndarrays?
+        A tuple containing the padded time, flux, flux error, and band 
+        arrays, respectively. If the input data does not contain any 
+        valid points, None is returned.
+
     """
-    Import the datafile.
-    """
-    npy_array = np.load(fn)
+    npy_array = np.load(filename)
     arr = npy_array['arr_0']
 
     ferr = arr[2]
@@ -95,31 +116,67 @@ def import_data(fn, t0_lim=None):
 
 
 def trunc_norm(low, high, loc, scale):
-    """
-    Helper function for dist.TruncatedNormal()
+    """Provides keyword parameters to numpyro's TruncatedNormal.
+
+    Parameters
+    ----------
+    low : float
+        The lower bound of the truncated normal distribution.
+    high : float
+        The upper bound of the truncated normal distribution.
+    loc : float
+        The mean of the truncated normal distribution.
+    scale : float
+        The standard deviation of the truncated normal distribution.
+
+    Returns
+    -------
+    numpyro.distributions.TruncatedDistribution
+        A truncated normal distribution.
     """
     return dist.TruncatedNormal(loc=loc, scale=scale, low=low, high=high)
 
 
-def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
-    """
-    Run dynesty importance nested sampling on datafile. Returns
-    set of equally weighted posteriors (sets of fit parameters).
+def run_mcmc(filename, sampler="NUTS", t0_lim=None, plot=False):
+    """Runs dynesty importance nested sampling on data file to get set
+    of equally weighted posteriors (sets of fit parameters).
+
+    Parameters
+    ----------
+    filename : str
+        The file name of the data file to run MCMC on.
+    sampler : str, optional
+        The MCMC sampler to use. Defaults to "NUTS".
+    t0_lim : float or None, optional
+        Upper time limit for the data. If provided, only data points 
+        with time values less than or equal to t0_lim will be included. 
+        Defaults to None.
+    plot : bool, optional
+        If True, associated plots will be generated and saved. Defaults 
+        to False.
+
+    Returns
+    -------
+    np.ndarray or None
+        A set of equally weighted posteriors (sets of fit parameters) as 
+        a numpy array. If the data file does not contain any valid 
+        points, None is returned.
+
     """
     rng_key = random.PRNGKey(4)
     rng_key, rng_key_ = random.split(rng_key) # pylint: disable=unused-variable
 
     ref_band_idx = 1 # red band # pylint: disable=unused-variable
 
-    #prefix = fn.split("/")[-1][:-4]
+    #prefix = filename.split("/")[-1][:-4]
 
     #print(prefix)
     n_params = 14 # pylint: disable=unused-variable
 
-    prefix = fn.split("/")[-1][:-4]
-    tdata, fdata, ferrdata, bdata = import_data(fn, t0_lim)
+    prefix = filename.split("/")[-1][:-4]
+    tdata, fdata, ferrdata, bdata = import_data(filename, t0_lim)
     if tdata is None:
-        return
+        return None
 
     max_flux = np.max( fdata[PAD_SIZE:] - np.abs(ferrdata[PAD_SIZE:]) )
     inc_band_ix = np.arange( 0, PAD_SIZE )
@@ -128,6 +185,21 @@ def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
     def jax_model(
         t=None, obsflux=None, uncertainties=None, max_flux=None, inc_band_ix=None
     ):
+        """JAX model for MCMC.
+
+        Parameters
+        ----------
+        t : array-like, optional # TODOLIV array types here
+            Time values. Defaults to None.
+        obsflux : array-like, optional
+            Observed flux values. Defaults to None.
+        uncertainties : array-like, optional
+            Flux uncertainties. Defaults to None.
+        max_flux : float, optional
+            Maximum flux value. Defaults to None.
+        inc_band_ix : array-like, optional
+            Index values for the band. Defaults to None.
+        """
         A = max_flux * 10**numpyro.sample("logA", trunc_norm(*PRIOR_A))
         beta = numpyro.sample("beta", trunc_norm(*PRIOR_BETA))
         gamma = 10**numpyro.sample("log_gamma", trunc_norm(*PRIOR_GAMMA))
@@ -195,7 +267,22 @@ def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
 
     def jax_guide(
         t=None, obsflux=None, uncertainties=None, max_flux=None, inc_band_ix=None # pylint: disable=unused-variable
-    ):
+    ): # TODOLIV - how does this work? nothing seems to be returned or written to. is this just to check that things can run ok?
+        """JAX guide function for MCMC.
+
+        Parameters
+        ----------
+        t : array-like, optional # TODOLIV array types here
+            Time values. Defaults to None.
+        obsflux : array-like, optional
+            Observed flux values. Defaults to None.
+        uncertainties : array-like, optional
+            Flux uncertainties. Defaults to None.
+        max_flux : float, optional
+            Maximum flux value. Defaults to None.
+        inc_band_ix : array-like, optional
+            Index values for the band. Defaults to None.
+        """
         logA_mu = numpyro.param(
             "logA_mu",
             PRIOR_A[2],
@@ -335,7 +422,6 @@ def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
         )
 
 
-
     if sampler == "NUTS":
         kernel = NUTS(jax_model, init_strategy=init_to_uniform)
 
@@ -425,7 +511,7 @@ def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
     plt.close()
 
     if plot:
-        ignore_idx = (ferrdata == 1e10) # pylint: disable=superfluous-parens
+        ignore_idx = ferrdata == 1e10
         tdata = tdata[~ignore_idx]
         fdata = fdata[~ignore_idx]
         ferrdata = ferrdata[~ignore_idx]
@@ -512,17 +598,26 @@ def run_mcmc(fn, sampler="NUTS", t0_lim=None, plot=False):
     return np.array(post_reformatted_for_save).T
 
 
-def run_mcmc_batch(fns, t0_lim=None, plot=False):
-    """
-    Run dynesty importance nested sampling on datafile. Returns
-    set of equally weighted posteriors (sets of fit parameters).
+def run_mcmc_batch(filenames, t0_lim=None, plot=False):
+    """Runs numpyro's NUTS sampler on data file to get a set of equally
+    weighted posteriors (sets of fit parameters).
+
+    Parameters
+    ----------
+    filenames : str
+        The names of the files to run MCMC on.
+    t0_lim : float or None, optional
+        Upper time limit for the data. Defaults to None.
+    plot : bool, optional
+        Flag for generating and saving assosciated plots. Defaults to 
+        False.
     """
     rng_key = random.PRNGKey(4)
     rng_key, rng_key_ = random.split(rng_key) # pylint: disable=unused-variable
 
     ref_band_idx = 1 # red band # pylint: disable=unused-variable
 
-    #prefix = fn.split("/")[-1][:-4]
+    #prefix = filename.split("/")[-1][:-4]
 
     #print(prefix)
     n_params = 14 # pylint: disable=unused-variable
@@ -533,9 +628,9 @@ def run_mcmc_batch(fns, t0_lim=None, plot=False):
     bdata_stacked = []
     prefixes = []
 
-    for fn in fns:
-        prefixes.append(fn.split("/")[-1][:-4])
-        tdata, fdata, ferrdata, bdata = import_data(fn, t0_lim)
+    for filename in filenames:
+        prefixes.append(filename.split("/")[-1][:-4])
+        tdata, fdata, ferrdata, bdata = import_data(filename, t0_lim)
         if tdata is None:
             continue
         tdata_stacked.append(tdata)
@@ -558,6 +653,21 @@ def run_mcmc_batch(fns, t0_lim=None, plot=False):
     def jax_model(
         t=None, obsflux=None, uncertainties=None, max_flux=None, inc_band_ix=None
     ):
+        """JAX model for MCMC.
+
+        Parameters
+        ----------
+        t : array-like, optional # TODOLIV array types
+            Time values. Defaults to None.
+        obsflux : array-like, optional
+            Observed flux values. Defaults to None.
+        uncertainties : array-like, optional
+            Flux uncertainties. Defaults to None.
+        max_flux : float, optional
+            Maximum flux value. Defaults to None.
+        inc_band_ix : array-like, optional
+            Index values for the band. Defaults to None.
+        """
         with numpyro.plate('components', N) as sn_index: # pylint: disable=unused-variable
             A = max_flux * 10**numpyro.sample("logA", trunc_norm(*PRIOR_A))
             beta = numpyro.sample("beta", trunc_norm(*PRIOR_BETA))
@@ -735,6 +845,17 @@ def run_mcmc_batch(fns, t0_lim=None, plot=False):
 
 
 def flux_from_posteriors(t, params, max_flux):
+    """Generates g- and r- band fluxes from given posteriors.
+
+    Parameters
+    ----------
+    t : float
+        Time parameter.
+    params : dict-like ? # TODOLIV check these types
+        A collection of parameters used in the calculation. (TODOLIV - are these the posteriors?)
+    max_flux : float ?
+        The upper limit of flux values.
+    """
     logA, beta, log_gamma = params['logA'], params['beta'], params['log_gamma']
     t0, log_tau_rise, log_tau_fall, log_extra_sigma = (
         params["t0"],
@@ -788,14 +909,23 @@ def flux_from_posteriors(t, params, max_flux):
     return flux_g, flux_r
 
 
-def main_loop_directory(test_fns, output_dir=FITS_DIR):
+def main_loop_directory(test_filenames, output_dir=FITS_DIR):
+    """Runs MCMC on given filenames and saves results.
+
+    Parameters
+    ----------
+    test_filenames : list of str
+        Names of files to use as input.
+    output_dir : str
+        Directory to save outputs to. Defaults to FITS_DIR.
+    """
     #try:
     os.makedirs(output_dir, exist_ok=True)
     #prefix = test_fn.split("/")[-1][:-4]
     #if os.path.exists(output_dir + str(prefix) + '_eqwt.npz'):
     #    return None
 
-    eq_samples = run_mcmc_batch(test_fns, plot=True)
+    eq_samples = run_mcmc_batch(test_filenames, plot=True)
 
     if eq_samples is None:
         return None
@@ -809,16 +939,27 @@ def main_loop_directory(test_fns, output_dir=FITS_DIR):
     #    return None
 
 
-def numpyro_single_file(test_fn, output_dir=FITS_DIR, sampler="svi"):
+def numpyro_single_file(test_filename, output_dir=FITS_DIR, sampler="svi"):
+    """Runs MCMC on a single file.
+
+    Parameters
+    ----------
+    test_filename : str
+        Name of the file to use as input.
+    output_dir : str
+        Directory to save outputs to. Defaults to FITS_DIR.
+    sampler : str
+        The MCMC sampler to use. Defaults to "svi".
+    """
     os.makedirs(output_dir, exist_ok=True)
 
-    eq_samples = run_mcmc(test_fn, sampler=sampler, plot=False)
+    eq_samples = run_mcmc(test_filename, sampler=sampler, plot=False)
 
     if eq_samples is None:
         return None
 
     print(np.mean(eq_samples, axis=0))
-    prefix = test_fn.split("/")[-1][:-4]
+    prefix = test_filename.split("/")[-1][:-4]
 
     np.savez_compressed(output_dir + str(prefix) + '_eqwt_%s.npz' % sampler, eq_samples)
 

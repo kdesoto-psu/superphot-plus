@@ -1,3 +1,6 @@
+"""This module provides various functions for analyzing and visualizing
+light curve data."""
+
 import csv
 import os
 
@@ -18,18 +21,26 @@ from .ztf_transient_fit import import_data
 alerce = Alerce()
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=BIGGER_SIZE)     # fontsize of the axes title
+plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
 plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
 plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
+plt.rc('legend', fontsize=MEDIUM_SIZE)   # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
-def plot_high_confidence_confusion_matrix(probs_csv,
-                              filename, cutoff=0.7):
-    """
-    Plot confusion matrices only, but only including 
+def plot_high_confidence_confusion_matrix(probs_csv, filename, cutoff=0.7):
+    """Plot confusion matrices for high-confidence predictions.
+
+    Parameters
+    ----------
+    probs_csv : str
+        Path to the CSV file containing probability predictions.
+    filename : str
+        Base filename for saving the confusion matrix plots.
+    cutoff : float, optional
+        Probability cutoff value for high-confidence predictions.
+        Default is 0.7.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"}
     true_classes = []
@@ -55,11 +66,19 @@ def plot_high_confidence_confusion_matrix(probs_csv,
                           purity=True)
 
 
-def plot_snIa_confusion_matrix(probs_csv,
-                              filename, p07=False):
-    """
-    Merge all non-Ia into one core collapse class.
-    Plots resulting binary confusion matrix.
+def plot_snIa_confusion_matrix(probs_csv, filename, p07=False):
+    """Merge all non-Ia into one core collapse class and plot resulting
+    binary confusion matrix.
+
+    Parameters
+    ----------
+    probs_csv : str
+        Path to the CSV file containing probability predictions.
+    filename : str
+        Base filename for saving the confusion matrix plots.
+    p07 : bool, optional
+        If True, only include predictions with a probability >= 0.7.
+        Default is False.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN CC"}
     true_classes = []
@@ -93,9 +112,20 @@ def plot_snIa_confusion_matrix(probs_csv,
 
 
 def get_pred_class(ztf_name, reflect_style=False):
-    """
-    Get alerce probabilities corresponding to the
-    four (no SN IIn) classes included in our ZTF classifier.
+    """Get alerce probabilities corresponding to the four (no SN IIn)
+    classes in our ZTF classifier.
+    
+    Parameters
+    ----------
+    ztf_name : str
+        ZTF name of the object.
+    reflect_style : bool, optional
+        If True, change format of output labels. Default is False.
+
+    Returns
+    -------
+    str
+        Predicted class label.
     """
     global alerce
     o = alerce.query_probabilities(oid=ztf_name, format="pandas")
@@ -112,11 +142,21 @@ def get_pred_class(ztf_name, reflect_style=False):
     return label
 
 
-def plot_alerce_confusion_matrix(probs_csv,
-                              filename, p07=False):
-    """
-    Plots ALeRCE's classifications as confusion matrix. Only four classes
-    as SNe IIn is not a label in their transient classifier.
+def plot_alerce_confusion_matrix(probs_csv, filename, p07=False):
+    """Plots ALeRCE's classifications as confusion matrix. 
+    
+    Only four classes as SNe IIn is not a label in their transient
+    classifier.
+    
+    Parameters
+    ----------
+    probs_csv : str
+        Path to the CSV file containing probability predictions.
+    filename : str
+        Base filename for saving the confusion matrix plots.
+    p07 : bool, optional
+        If True, only include predictions with a probability >= 0.7.
+        Default is False.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"}
     true_classes = []
@@ -168,8 +208,15 @@ def plot_alerce_confusion_matrix(probs_csv,
 
 
 def plot_agreement_matrix(probs_csv, filename):
-    """
-    Plot agreement matrix between ALeRCE and Superphot+ classifications.
+    """Plot agreement matrix between ALeRCE and Superphot+
+    classifications.
+
+    Parameters
+    ----------
+    probs_csv : str
+        Path to the CSV file containing probability predictions.
+    filename : str
+        Base filename for saving the agreement matrix plot.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"}
     pred_classes = []
@@ -199,14 +246,21 @@ def plot_agreement_matrix(probs_csv, filename):
             pred_classes.append(pred_index)
     pred_labels = [classes_to_labels[x] for x in pred_classes]
 
-    plot_agreement_matrix_from_arrs(pred_labels,
-                          alerce_preds,
-                          filename)
+    plot_agreement_matrix_from_arrs(pred_labels, alerce_preds, filename)
 
 
 def plot_expected_agreement_matrix(probs_csv, filename, cmap=plt.cm.Purples):
-    """
-    Plots the expected agreement matrix based on independent ALERCE and Superphot+ CM's.
+    """Plot expected agreement matrix based on independent ALeRCE and
+    Superphot+ confusion matrices.
+
+    Parameters
+    ----------
+    probs_csv : str
+        Path to the CSV file containing probability predictions.
+    filename : str
+        Base filename for saving the expected agreement matrix plot.
+    cmap : matplotlib.colors.Colormap, optional
+        Color map for the plot. Default is plt.cm.Purples.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"}
     pred_classes = []
@@ -275,8 +329,7 @@ def plot_expected_agreement_matrix(probs_csv, filename, cmap=plt.cm.Purples):
            xlabel='Superphot+ Classification')
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-             rotation_mode="anchor")
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
     fmt = '.2f'
@@ -294,14 +347,27 @@ def plot_expected_agreement_matrix(probs_csv, filename, cmap=plt.cm.Purples):
 
 
 def plot_agreement_matrix_from_arrs(our_labels, alerce_labels, filename, cmap=plt.cm.Purples):
-    """
-    Helper function to plot agreement matrices.
+    """Helper function to plot agreement matrices.
+
+    Plot agreement matrix based on input arrays of ALeRCE and Superphot+
+    classifications.
+
+    Parameters
+    ----------
+    our_labels : list
+        List of our predicted labels.
+    alerce_labels : list
+        List of ALeRCE predicted labels.
+    filename : str
+        Base filename for saving the agreement matrix plot.
+    cmap : matplotlib.colors.Colormap, optional
+        Color map for the plot. Default is plt.cm.Purples.
     """
     cm = confusion_matrix(alerce_labels, our_labels, normalize='true')
     classes = unique_labels(alerce_labels, our_labels)
 
-    alerce_labels = np.array(alerce_labels)
     our_labels = np.array(our_labels)
+    alerce_labels = np.array(alerce_labels)
 
     exp_acc = calc_accuracy(alerce_labels, our_labels)
     title = r"True Agreement Matrix, Spec. ($A' = %.2f$)" % exp_acc
@@ -340,8 +406,19 @@ def plot_agreement_matrix_from_arrs(our_labels, alerce_labels, filename, cmap=pl
 
 
 def save_class_fractions(spec_probs_csv, phot_probs_csv, save_fn):
-    """
-    Return class fractions from spectroscopic, photometric, and corrected photometric.
+    """Save class fractions from spectroscopic, photometric, and
+    corrected photometric.
+
+    Parameters
+    ----------
+    spec_probs_csv : str
+        Path to the CSV file containing spectroscopic probability
+        predictions.
+    phot_probs_csv : str
+        Path to the CSV file containing photometric probability
+        predictions.
+    save_fn : str
+        Filename for saving the class fractions.
     """
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"} # pylint: disable=unused-variable
     label_to_class = {"SN Ia": 0, "SN II": 1, "SN IIn": 2, "SLSN-I": 3, "SN Ibc": 4}
@@ -428,10 +505,15 @@ def save_class_fractions(spec_probs_csv, phot_probs_csv, save_fn):
 
 
 def plot_class_fractions(saved_cf_file, fig_dir):
+    """Plot class fractions saved from 'save_class_fractions'.
+    
+    Parameters
+    ----------
+    saved_cf_file : str
+        Path to the saved class fractions file.
+    fig_dir : str
+        Directory for saving the class fractions plot.
     """
-    Plot class fractions saved from 'save_class_fractions'.
-    """
-
     classes_to_labels = {0: "SN Ia", 1: "SN II", 2: "SN IIn", 3: "SLSN-I", 4: "SN Ibc"}
     label_to_class = {"SN Ia": 0, "SN II": 1, "SN IIn": 2, "SLSN-I": 3, "SN Ibc": 4} # pylint: disable=unused-variable
     labels = [
@@ -521,14 +603,23 @@ def plot_class_fractions(saved_cf_file, fig_dir):
     plt.close()
 
 
-def plot_confusion_matrix(y_true, y_pred,
-                          filename,
-                          purity=False,
-                          cmap=plt.cm.Purples):
+def plot_confusion_matrix(y_true, y_pred, filename, purity=False, cmap=plt.cm.Purples):
+    """Plot the confusion matrix between given true and predicted
+    labels.
+    
+    Parameters
+    ----------
+    y_true : array-like #TODOLIV look into array types
+        True labels.
+    y_pred : array-like
+        Predicted labels.
+    filename : str
+        Base filename for saving the confusion matrix plot.
+    purity : bool, optional
+        If True, plot the purity confusion matrix. Default is False.
+    cmap : matplotlib.colors.Colormap, optional
+        Color map for the plot. Default is plt.cm.Purples.
     """
-    This function prints and plots the confusion matrix.
-    """
-
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
 
@@ -580,9 +671,15 @@ def plot_confusion_matrix(y_true, y_pred,
 
 
 def corner_plot_all(input_csvs, save_file):
-    """
-    Plot combined corner plot of all training set samples,
-    excluding the overall scaling A.
+    """Plot combined corner plot of all training set samples, excluding
+    the overall scaling A.
+
+    Parameters
+    ----------
+    input_csvs : list
+        List of input CSV file paths containing probability predictions.
+    save_file : str
+        Path to save the combined corner plot.
     """
     allowed_types = ["SN Ia", "SN II", "SN IIn", "SLSN-I", "SN Ibc"]
     names, labels = import_labels_only(input_csvs, allowed_types)
@@ -622,9 +719,13 @@ def corner_plot_all(input_csvs, save_file):
 
 
 def plot_lightcurve_clipping(ztf_name):
-    """
-    Plots the lightcurve, WITH clipped points, and lines
-    demonstrating how those points are clipped. 
+    """Plot the lightcurve WITH clipped points and lines demonstrating
+    how those points are clipped.
+
+    Parameters
+    ----------
+    ztf_name : str
+        ZTF name of the plotted object.
     """
     data_fn = DATA_FOLDER + ztf_name + ".csv"
     t, f, ferr, b, ra, dec = import_lc(data_fn) # pylint: disable=unused-variable
@@ -704,8 +805,20 @@ def plot_lightcurve_clipping(ztf_name):
 
 
 def plot_lc_fit(ztf_name, data_dir, fit_dir, out_dir, sampling_method="dynesty"):
-    """
-    Plot existing LC fit.
+    """Plot an existing light curve fit.
+
+    Parameters
+    ----------
+    ztf_name : str
+        ZTF name of the object.
+    data_dir : str
+        Directory containing the data files.
+    fit_dir : str
+        Directory containing the fit files.
+    out_dir : str
+        Directory for saving the plot.
+    sampling_method : str, optional
+        Sampling method used for the fit. Default is "dynesty".
     """
     data_fn = os.path.join(data_dir, ztf_name+".npz")
     fit_fn = os.path.join(fit_dir, ztf_name + "_eqwt_" + sampling_method + ".npz")

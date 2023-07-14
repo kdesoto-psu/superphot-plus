@@ -1,3 +1,6 @@
+"""This script provides functions for importing and manipulating ZTF 
+data from the Alerce API."""
+
 import csv
 import glob
 import os
@@ -18,25 +21,31 @@ from .utils import convert_mags_to_flux
 alerce = Alerce()
 MIN_PER_FILTER = 5
 
-def add_stamp_column(fn, output_fn):
-    """
-    Check whether stamp classifier categorizes each
-    LC in spreadsheet as a supernova-like transient,
-    and add as additional column.
+def add_stamp_column(input_filename, output_filename):
+    """Checks whether stamp classifier categorizes each lightcurve in
+    spreadsheet as a supernova-like transient, and adds as additional
+    column.
+
+    Parameters
+    ----------
+    input_filename : str
+        Path to the input CSV file.
+    output_filename : str
+        Path to the output CSV file.
     """
     csv_rows = []
-    with open(fn, "r") as fn_csv:
+    with open(input_filename, "r") as fn_csv:
         csv_reader = csv.reader(fn_csv, delimiter=",")
         next(csv_reader)
         for row in csv_reader:
             csv_rows.append(row)
 
     print("done reading in rows")
-    with open(output_fn, "w+") as new_csv:
+    with open(output_filename, "w+") as new_csv:
         csv_writer = csv.writer(new_csv, delimiter=",")
         csv_writer.writerow(["NAME", "PROB", "CLASS", "STAMP"])
 
-    with open(output_fn, "a+") as new_csv:
+    with open(output_filename, "a+") as new_csv:
         csv_writer = csv.writer(new_csv, delimiter=",")
         for row in csv_rows:
             try:
@@ -57,9 +66,18 @@ def add_stamp_column(fn, output_fn):
 
 
 def get_spreadsheet_diff(s1, s2, new_fn):
-    """
-    Determine which elements are in s2 but not in s1, and vice versa.
+    """Determines which elements are in s2 but not s1, and vice versa.
+
     Saves overlap as separate CSV.
+
+    Parameters
+    ----------
+    s1 : str
+        Path to the first input CSV file.
+    s2 : str
+        Path to the second input CSV file.
+    new_fn : str
+        Path to the output CSV file.
     """
     rows_reduced = []
     names = set()
@@ -96,15 +114,21 @@ def get_spreadsheet_diff(s1, s2, new_fn):
 
 
 def filter_tns_all_transients(tns_csv, reduced_fn):
-    """
-    Filter TNS CSV by type and ZTF name.
+    """Filter TNS CSV by type and ZTF name.
     
     With 0 indexing:
     row 3 = ra
     row 4 = dec
     row 5 = redshift
     row 7 = obj type
-    row 18 = name
+    row 18 = name.
+
+    Parameters
+    ----------
+    tns_csv : str
+        Path to the TNS CSV file.
+    reduced_fn : str
+        Path to the output filtered CSV file.
     """
 
     ras = []
@@ -177,6 +201,13 @@ def filter_tns_all_transients(tns_csv, reduced_fn):
 
 
 def extract_all_zip_files(zip_folder):
+    """Extract all ZIP files in the specified folder.
+
+    Parameters
+    ----------
+    zip_folder : str
+        Path to the folder containing the ZIP files.
+    """
     all_zip_files = glob.glob(zip_folder+"*.zip")
     for zf in all_zip_files:
         name = zf.split("_")[-2].split("/")[-1]
@@ -188,6 +219,13 @@ def extract_all_zip_files(zip_folder):
 
 
 def get_all_unclassified_samples(save_csv):
+    """Get all unclassified samples and save them to a CSV file.
+
+    Parameters
+    ----------
+    save_csv : str
+        Path to the output CSV file.
+    """
     global alerce
 
     classifiers = alerce.query_classifiers()
@@ -276,9 +314,21 @@ def get_all_unclassified_samples(save_csv):
 
 
 def get_band_extinctions(ra, dec):
-    """
-    Get green and red band extinctions in magnitudes for
-    a single supernova LC based on RA and DEC.
+    """Gets g- and r-band extinctions in magnitudes for a single
+    supernova lightcurve based on right ascension and declination
+    coordinates.
+    
+    Parameters
+    ----------
+    ra : float
+        Right ascension coordinate.
+    dec : float
+        Declination coordinate.
+
+    Returns
+    -------
+    list (of float?) # TODOLIV
+        List containing the g- and r-band extinctions.
     """
     config["data_dir"] = dust_filepath
     sfd = SFDQuery()
@@ -295,16 +345,25 @@ def get_band_extinctions(ra, dec):
     return ext_list
 
 
-def import_lc(fn):
-    """
-    Import single file, but only the points from a single telescope,
-    in only g and r bands. 
+def import_lc(filename):
+    """Imports a single file, but only the points from a single
+    telescope, in only g and r bands.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the input CSV file.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the imported light curve data.
     """
     ra = None
     dec = None
-    if not os.path.exists(fn):
+    if not os.path.exists(filename):
         return [None,] * 6
-    with open(fn, 'r') as csv_f:
+    with open(filename, 'r') as csv_f:
         csvreader = csv.reader(csv_f, delimiter=',')
         row_intro = next(csvreader)
 
@@ -341,7 +400,6 @@ def import_lc(fn):
             mjd.append(float(row[1]))
             flux_err.append(float(row[ferr_idx]))
 
-
     sort_idx = np.argsort(np.array(mjd))
     t = np.array(mjd)[sort_idx].astype(float)
     m = np.array(flux)[sort_idx].astype(float)
@@ -368,9 +426,24 @@ def import_lc(fn):
 
 
 def clip_lightcurve_end(times, fluxes, fluxerrs, bands):
-    """
-    Clip end of lightcurve with approx. 0 slope.
-    Checks from back to max of lightcurve.
+    """Clips end of lightcurve with approximately 0 slope. Checks from
+    back to max of lightcurve.
+
+    Parameters
+    ----------
+    times : np.ndarray
+        Time values of the light curve.
+    fluxes : np.ndarray
+        Flux values of the light curve.
+    fluxerrs : np.ndarray
+        Flux error values of the light curve.
+    bands : np.ndarray
+        Band information of the light curve.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the clipped light curve data.
     """
     def line_fit(x, a, b): # pylint: disable=unused-variable
         return a*x + b
@@ -408,8 +481,8 @@ def clip_lightcurve_end(times, fluxes, fluxerrs, bands):
     return np.array(t_clip), np.array(flux_clip), np.array(ferr_clip), np.array(b_clip)
 
 
-def save_new_datafiles():
-
+def save_new_datafiles(): # TODOLIV missed one
+    """Save new data files based on the provided CSV file."""
     with open(OUTPUT_CSV, "w+") as csv_file:
         writer = csv.writer(csv_file, delimiter=',')
         writer.writerow(["Name", "Label", "Redshift"])
@@ -453,20 +526,40 @@ def save_new_datafiles():
         print(l, label_dict[l])
 
 
-def save_datafile(name, t, f, ferr, b, save_dir):
+def save_datafile(name, times, fluxes, fluxerrs, bands, save_dir):
+    """Saves a reformatted version of data file to the output folder.
+
+    Parameters
+    ----------
+    name : str
+        Name of the data file.
+    times : np.ndarray
+        Time values of the light curve.
+    fluxes : np.ndarray
+        Flux values of the light curve.
+    fluxerrs : np.ndarray
+        Flux error values of the light curve.
+    bands : np.ndarray
+        Band information of the light curve.
+    save_dir : str
+        Path to the output folder.
     """
-    Save reformatted version of datafile to
-    output folder.
-    """
-    arr = np.array([t, f, ferr, b])
+    arr = np.array([times, fluxes, fluxerrs, bands])
     print(arr[:,0])
     np.savez_compressed(save_dir + str(name) + '.npz', arr)
 
 
 def add_to_new_csv(name, label, redshift):
-    """
-    Add row to CSV of included files for
-    training.
+    """Add row to CSV of included files for training.
+    
+    Parameters
+    ----------
+    name : str
+        Name in the new row.
+    label : str
+        Label in the new row.
+    redshift : float
+        Redshift value  in the new row.
     """
     print(name, label, redshift)
     with open(OUTPUT_CSV, "a") as csv_file:
@@ -475,11 +568,16 @@ def add_to_new_csv(name, label, redshift):
 
 
 def make_master_csv(CSV_DIR, master_csv_name):
-    """
-    Check through entire TNS SN-classified database.
-    Tally count of each category.
-    """
+    """Checks through entire TNS SN-classified database and tallies
+    count of each category.
 
+    Parameters
+    ----------
+    CSV_DIR : str
+        Path to the directory containing the CSV files.
+    master_csv_name : str
+        Name of the output master CSV file.
+    """
     cat_dict = {}
     csv_arr = []
     for csv_file in glob.glob(CSV_DIR+"/*.csv"):
@@ -513,9 +611,15 @@ def make_master_csv(CSV_DIR, master_csv_name):
 
 
 def generate_flux_files(master_csv, save_folder):
-    """
-    Uses ALerce's API to generate flux files for all ZTF
-    samples in master_csv.
+    """Generates flux files for all ZTF samples in the master CSV file,
+    using ALeRCE's API.
+
+    Parameters
+    ----------
+    master_csv : str
+        Path to the master CSV file.
+    save_folder : str
+        Path to the folder where the flux files will be saved.
     """
     global alerce
     os.makedirs(save_folder, exist_ok=True)
@@ -535,9 +639,10 @@ def generate_flux_files(master_csv, save_folder):
 
 
 def generate_files_from_antares():
-    """
-    Uses ANTARES API to generate flux files for all ZTF
-    samples in master_csv. Includes correct zeropoints.
+    """Generates flux files for all ZTF samples in the master CSV file,
+    using ANTARES' API.
+     
+    Includes correct zeropoints.
     """
     with open(OUTPUT_CSV, "w+") as csv_file:
         writer = csv.writer(csv_file, delimiter=',')
@@ -627,9 +732,15 @@ def generate_files_from_antares():
 
 
 def generate_single_flux_file(ztf_name, save_folder):
-    """
-    Uses ALeRCE's API to generate flux files for all ZTF
-    samples in master_csv.
+    """Generates a flux file for a single ZTF sample in the master CSV
+    file, using ALeRCE's API.
+    
+    Parameters
+    ----------
+    ztf_name : str
+        Name of the ZTF sample.
+    save_folder : str
+        Path to the folder where the flux file will be saved.
     """
     global alerce
     os.makedirs(save_folder, exist_ok=True)
