@@ -16,3 +16,13 @@ def test_data_dir():
 @pytest.fixture
 def single_ztf_lightcurve(test_data_dir):
     return os.path.join(test_data_dir, "ZTF22abvdwik.csv")
+
+
+@pytest.fixture
+def single_ztf_lightcurve_compressed(test_data_dir):
+    return os.path.join(test_data_dir, "ZTF22abvdwik.npz")
+
+
+@pytest.fixture
+def single_ztf_sn_id():
+    return "ZTF22abvdwik"
